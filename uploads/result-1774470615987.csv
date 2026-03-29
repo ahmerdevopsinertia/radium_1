@@ -1,0 +1,4 @@
+Row,Address,Phone,COD Amount,City,Score,Status,Reasons
+1,,,,,45,RISKY,"Invalid address,Invalid phone,Missing city"
+2,,,,,45,RISKY,"Invalid address,Invalid phone,Missing city"
+3,,,,,45,RISKY,"Invalid address,Invalid phone,Missing city"

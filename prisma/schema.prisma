@@ -1,0 +1,29 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DIRECT_DATABASE_URL")
+}
+
+model DeliveryCheck {
+  id        String   @id @default(uuid())
+  orderId   String
+  status    String
+  riskScore Int
+  reasons   Json
+  createdAt DateTime @default(now())
+}
+
+model BulkBatch {
+  id          String   @id
+  totalOrders Int
+  resultPath  String
+  createdAt   DateTime @default(now())
+}
