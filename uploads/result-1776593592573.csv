@@ -1,0 +1,4 @@
+Row,Address,Phone,COD Amount,City,Score,Status,Reasons
+1,Dubai Marina,0501234567,450,Dubai,,READY,"Address lacks details,AI analysis"
+2,Abu Dhabi Corniche,0559998888,120,Abu Dhabi,,READY,"Address lacks details,AI analysis"
+3,Sharjah Industrial,0500000000,800,Sharjah,,DO_NOT_SHIP,"Address lacks details,High COD,Fake phone,AI analysis"

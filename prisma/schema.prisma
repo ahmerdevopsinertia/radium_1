@@ -16,7 +16,9 @@ model DeliveryCheck {
   id        String   @id @default(uuid())
   orderId   String
   status    String
-  riskScore Int
+  riskScore   Int
+  baseScore   Int?
+  aiScore     Int?
   reasons   Json
   createdAt DateTime @default(now())
 }

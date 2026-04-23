@@ -24,6 +24,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/adapter-pg": "^7.5.0",
+    "axios": "^1.15.0",
     "csv-parse": "^6.2.1",
     "csv-writer": "^1.6.0",
     "fast-csv": "^5.0.5",

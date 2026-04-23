@@ -4,6 +4,7 @@ import { parse } from 'csv-parse';
 import { PrismaService } from '../database/prisma.service';
 import * as fs from 'fs';
 import { createObjectCsvWriter } from 'csv-writer';
+import { evaluateOrder } from './utils/decision-engine';
 
 @Injectable()
 export class DeliveryService {
@@ -12,15 +13,15 @@ export class DeliveryService {
 
 	async checkOrder(order: any) {
 
-		const { score, reasons } = calculateRisk(order);
+		const { score, reasons } = await evaluateOrder(order);
 
-		let status = 'READY';
+		// let status = 'READY';
 
-		if (score > 60) {
-			status = 'DO_NOT_SHIP';
-		} else if (score > 30) {
-			status = 'RISKY';
-		}
+		// if (score > 60) {
+		// 	status = 'DO_NOT_SHIP';
+		// } else if (score > 30) {
+		// 	status = 'RISKY';
+		// }
 
 		// ✅ SAVE TO DB
 		await this.prisma.deliveryCheck.create({
@@ -41,7 +42,6 @@ export class DeliveryService {
 	}
 
 	async processCsv(file: Express.Multer.File) {
-
 		return new Promise((resolve, reject) => {
 			parse(
 				file.buffer,
@@ -53,20 +53,24 @@ export class DeliveryService {
 				async (err, rows) => {
 					if (err) return reject(err);
 
-					const results = rows.map((row, index) => {
-						const evaluated = calculateRisk(row);
-						return {
-							row: index + 1,
-							...evaluated,
-						};
-					});
+					const results = await Promise.all(
+						rows.map(async (row, index) => {
+							const evaluated = await evaluateOrder(row);
+							return {
+								row: index + 1,
+								...evaluated,
+							};
+						})
+					);
 
 					// ✅ SAVE ALL TO DB
 					await this.prisma.deliveryCheck.createMany({
-						data: results.map((r) => ({
+						data: results.map((r: any) => ({
 							orderId: `BULK-${Date.now()}-${r.row}`,
 							status: r.status,
-							riskScore: r.score,
+							riskScore: r.finalScore,
+							baseScore: r.baseScore,
+							aiScore: r.aiScore,
 							reasons: r.reasons,
 						})),
 					});
@@ -103,27 +107,31 @@ export class DeliveryService {
 				async (err, rows) => {
 					if (err) return reject(err);
 
-					const results = rows.map((row: any, index) => {
-						const normalizedRow = {
-							address: row.address || row.Address || '',
-							phone: row.phone || row.Phone || '',
-							codAmount: row.codAmount || row['COD Amount'] || 0,
-							city: row.city || row.City || '',
-						};
-						const evaluated = calculateRisk(row);
-						return {
-							row: index + 1,
-							...normalizedRow,
-							...evaluated,
-						};
-					});
+					const results = await Promise.all(
+						rows.map(async (row: any, index) => {
+							const normalizedRow = {
+								address: row.address || row.Address || '',
+								phone: row.phone || row.Phone || '',
+								codAmount: row.codAmount || row['COD Amount'] || 0,
+								city: row.city || row.City || '',
+							};
+							const evaluated = await evaluateOrder(row);
+							return {
+								row: index + 1,
+								...normalizedRow,
+								...evaluated,
+							};
+						})
+					);
 
 					// ✅ SAVE ALL TO DB
-					const t = await this.prisma.deliveryCheck.createMany({
-						data: results.map((r) => ({
+					await this.prisma.deliveryCheck.createMany({
+						data: results.map((r: any) => ({
 							orderId: `BULK-${Date.now()}-${r.row}`,
 							status: r.status,
-							riskScore: r.score,
+							riskScore: r.finalScore,
+							baseScore: r.baseScore,
+							aiScore: r.aiScore,
 							reasons: r.reasons,
 						})),
 					});
@@ -159,8 +167,6 @@ export class DeliveryService {
 							{ id: 'reasons', title: 'Reasons' },
 						],
 					});
-
-					console.log(results)
 
 					await csvWriter.writeRecords(results);
 
