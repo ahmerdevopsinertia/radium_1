@@ -19,7 +19,7 @@ export interface RiskResult {
 }
 
 export function ruleEngine(order: any) {
-  let score = 100;
+  let score = 0;
   const reasons: string[] = [];
 
   const address = (order.address || '').toLowerCase();
@@ -29,85 +29,60 @@ export function ruleEngine(order: any) {
 
   // Address
   if (!address || address.length < 10) {
-    score -= 25;
+    score += 25;
     reasons.push('Incomplete address');
   }
 
   if (!address.includes('street') && !address.includes('building')) {
-    score -= 10;
+    score += 10;
     reasons.push('Address lacks details');
   }
 
   // Phone
   if (!/^05\d{8}$/.test(phone)) {
-    score -= 30;
+    score += 30;
     reasons.push('Invalid UAE phone');
   }
 
   // COD
   if (cod > 1000) {
-    score -= 40;
+    score += 40;
     reasons.push('Very high COD');
   } else if (cod > 500) {
-    score -= 20;
+    score += 20;
     reasons.push('High COD');
   }
 
   // City
   if (!city) {
-    score -= 15;
+    score += 15;
     reasons.push('Missing city');
   }
 
   const riskyCities = ['Sharjah Industrial', 'Ajman'];
   if (riskyCities.includes(city)) {
-    score -= 10;
+    score += 10;
     reasons.push('High-risk area');
   }
 
   // Suspicious patterns
   if (phone === '0500000000') {
-    score -= 40;
+    score += 40;
     reasons.push('Fake phone');
   }
 
+  // Cap score
+  if (score > 100) score = 100;
+
   let status = 'READY';
 
-  if (score <= 40) status = 'DO_NOT_SHIP';
-  else if (score <= 70) status = 'RISKY';
+  if (score >= 70) status = 'DO_NOT_SHIP';
+  else if (score >= 40) status = 'RISKY';
 
   return { score, status, reasons };
 }
 
 export async function getAiScore(order: any) {
-  // let aiScore = 0;
-  // const aiReasons: string[] = [];
-
-  // const address = (order.address || '').toLowerCase();
-  // const phone = order.phone || '';
-
-  // // AI-like logic
-  // if (address.includes('near') || address.includes('behind')) {
-  //   aiScore += 20;
-  //   aiReasons.push('Vague address (AI)');
-  // }
-
-  // if (phone === '0500000000') {
-  //   aiScore += 30;
-  //   aiReasons.push('Suspicious phone pattern (AI)');
-  // }
-
-  // if (address.length < 8 && order.codAmount > 300) {
-  //   aiScore += 25;
-  //   aiReasons.push('Suspicious order combination (AI)');
-  // }
-
-  // return {
-  //   aiScore,
-  //   aiReasons,
-  //   confidence: 0.7, // static for now
-  // };
-
   try {
 
     const prompt = buildDeliveryPrompt(order);
@@ -152,39 +127,6 @@ export async function getAiScore(order: any) {
   }
 }
 
-export function mergeDecision(ruleScore: number, aiScore: number) {
-  let finalScore = ruleScore;
-
-  // AI influence (controlled)
-  if (aiScore > 20) {
-    finalScore -= 10;
-  }
-
-  if (aiScore > 40) {
-    finalScore -= 10;
-  }
-
-  // Hard rules (cannot be overridden)
-  if (ruleScore <= 40) {
-    return {
-      finalScore,
-      status: 'DO_NOT_SHIP',
-    };
-  }
-
-  if (finalScore <= 70) {
-    return {
-      finalScore,
-      status: 'RISKY',
-    };
-  }
-
-  return {
-    finalScore,
-    status: 'READY',
-  };
-}
-
 export async function evaluateOrder(order: any) {
   // 1. Rule Engine
   const { score, reasons } = ruleEngine(order);
@@ -193,7 +135,7 @@ export async function evaluateOrder(order: any) {
   const { aiScore, aiReasons, confidence } = await getAiScore(order);
 
   // 3. Merge Decision
-  const { finalScore, status } = mergeDecision(score, aiScore);
+  const { finalScore, status, decisionSource } = mergeDecision(score, aiScore);
 
   return {
     ...order,
@@ -203,5 +145,54 @@ export async function evaluateOrder(order: any) {
     status,
     reasons: [...reasons, ...aiReasons],
     aiConfidence: confidence,
+    decisionSource,
+  };
+}
+
+export function mergeDecision(ruleScore: number, aiScore: number) {
+  // 🎯 Weighting (rule > AI)
+  const RULE_WEIGHT = 0.7;
+  const AI_WEIGHT = 0.3;
+
+  let adjustedAi = aiScore;
+
+  // Boost extreme AI signals
+  if (aiScore >= 40) adjustedAi += 5;
+  if (aiScore <= 10) adjustedAi -= 5;
+
+  const finalScore = Math.round(
+    ruleScore * RULE_WEIGHT + adjustedAi * AI_WEIGHT
+  );
+
+  // 🚫 Hard rule (cannot be overridden)
+  if (ruleScore >= 80) {
+    return {
+      finalScore,
+      status: 'DO_NOT_SHIP',
+      decisionSource: 'HARD_RULE_SCORE',
+    };
+  }
+
+  // 📊 Final decision
+  if (finalScore >= 70) {
+    return {
+      finalScore,
+      status: 'DO_NOT_SHIP',
+      decisionSource: 'WEIGHTED_SCORE',
+    };
+  }
+
+  if (finalScore >= 40) {
+    return {
+      finalScore,
+      status: 'RISKY',
+       decisionSource: 'WEIGHTED_SCORE'
+    };
+  }
+
+  return {
+    finalScore,
+    status: 'READY',
+    decisionSource: 'WEIGHTED_SCORE',
   };
 }

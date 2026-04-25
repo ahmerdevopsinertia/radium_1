@@ -15,14 +15,6 @@ export class DeliveryService {
 
 		const { score, reasons } = await evaluateOrder(order);
 
-		// let status = 'READY';
-
-		// if (score > 60) {
-		// 	status = 'DO_NOT_SHIP';
-		// } else if (score > 30) {
-		// 	status = 'RISKY';
-		// }
-
 		// ✅ SAVE TO DB
 		await this.prisma.deliveryCheck.create({
 			data: {
