@@ -12,25 +12,42 @@ export class DeliveryService {
 	constructor(private readonly prisma: PrismaService) { }
 
 	async checkOrder(order: any) {
-
-		const { score, reasons } = await evaluateOrder(order);
+		const {
+			ruleEngineScore,
+			aiScore,
+			finalScore,
+			status,
+			reasons,
+			aiConfidence,
+			aiReasons: aiReasons,
+			decisionSource,
+		} = await evaluateOrder(order);
 
 		// ✅ SAVE TO DB
 		await this.prisma.deliveryCheck.create({
 			data: {
 				orderId: `ORD-${Date.now()}`, // simple unique ID
 				status,
-				riskScore: score,
 				reasons,
+				ruleEngineScore,
+				finalScore,
+				aiScore,
+				decisionSource,
+				aiConfidence,
+				aiReasons,
 			},
 		});
 
-
 		return {
+			ruleEngineScore,
+			aiScore,
+			finalScore,
 			status,
-			riskScore: score,
 			reasons,
-		};
+			aiConfidence,
+			aiReasons: aiReasons,
+			decisionSource,
+		}
 	}
 
 	async processCsv(file: Express.Multer.File) {
@@ -60,10 +77,13 @@ export class DeliveryService {
 						data: results.map((r: any) => ({
 							orderId: `BULK-${Date.now()}-${r.row}`,
 							status: r.status,
-							riskScore: r.finalScore,
-							baseScore: r.baseScore,
+							ruleEngineScore: r.ruleEngineScore,
+							finalScore: r.finalScore,
 							aiScore: r.aiScore,
 							reasons: r.reasons,
+							decisionSource: r.decisionSource,
+							aiConfidence: r.aiConfidence,
+							aiReasons: r.aiReasons,
 						})),
 					});
 
@@ -121,10 +141,13 @@ export class DeliveryService {
 						data: results.map((r: any) => ({
 							orderId: `BULK-${Date.now()}-${r.row}`,
 							status: r.status,
-							riskScore: r.finalScore,
-							baseScore: r.baseScore,
+							ruleEngineScore: r.ruleEngineScore,
+							finalScore: r.finalScore,
 							aiScore: r.aiScore,
 							reasons: r.reasons,
+							decisionSource: r.decisionSource,
+							aiConfidence: r.aiConfidence,
+							aiReasons: r.aiReasons,
 						})),
 					});
 

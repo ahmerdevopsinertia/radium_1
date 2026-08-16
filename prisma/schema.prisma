@@ -16,10 +16,13 @@ model DeliveryCheck {
   id        String   @id @default(uuid())
   orderId   String
   status    String
-  riskScore   Int
-  baseScore   Int?
+  ruleEngineScore   Int
+  finalScore   Int?
   aiScore     Int?
+  aiReasons Json
   reasons   Json
+  decisionSource String
+  aiConfidence Decimal
   createdAt DateTime @default(now())
 }
 

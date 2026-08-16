@@ -139,12 +139,13 @@ export async function evaluateOrder(order: any) {
 
   return {
     ...order,
-    baseScore: score,
+    ruleEngineScore: score,
     aiScore,
     finalScore,
     status,
-    reasons: [...reasons, ...aiReasons],
+    reasons,
     aiConfidence: confidence,
+    aiReasons: aiReasons,
     decisionSource,
   };
 }
